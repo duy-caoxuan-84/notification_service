@@ -1,0 +1,29 @@
+sequenceDiagram
+    autonumber
+    actor User
+    participant App as Android App (FCM SDK)
+    participant FCM as Google FCM Servers
+    participant ProfileAPI as User Profile Service
+    participant DB as Profile Database
+    participant Worker as Push Notification Worker
+
+    rect rgb(200, 220, 240)
+    Note right of User: Phase 1: Registration Flow (App Startup)
+    App->>FCM: Request Push Notification Token
+    FCM-->>App: Returns FCM Token (e.g., "token_abc123")
+    App->>App: Generate unique local 'device_id' (e.g., "device_999")
+    App->>ProfileAPI: POST /users/usr_1/devices<br>{device_id, fcm_token, platform: Android}
+    ProfileAPI->>DB: UPSERT: Save/Update mapping for usr_1 and device_999
+    ProfileAPI-->>App: 200 OK
+    end
+
+    rect rgb(240, 220, 200)
+    Note right of User: Phase 2: Sending a Notification (Later)
+    Worker->>Worker: Pulls message from RabbitMQ:<br> "Send 'Order Shipped' to usr_1"
+    Worker->>DB: Query: "Get FCM Tokens for usr_1"
+    DB-->>Worker: Returns "token_abc123"
+    Worker->>FCM: POST to FCM API with payload & "token_abc123"
+    FCM-->>Worker: 200 OK (Accepted for delivery)
+    FCM->>App: Delivers push notification payload to device silently
+    App->>User: Displays System Tray Notification
+    end

@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  # Metadata Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: notification-postgres
+    environment:
+      POSTGRES_USER: notif_user
+      POSTGRES_PASSWORD: notif_password
+      POSTGRES_DB: notification_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  # Message Broker (with Management UI)
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: notification-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"   # AMQP protocol port
+      - "15672:15672" # Management UI port
+    restart: unless-stopped
+
+  # Rate Limiter & Cache
+  redis:
+    image: redis:7-alpine
+    container_name: notification-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  # Local Email Testing (Catches outgoing emails)
+  mailpit:
+    image: axllent/mailpit
+    container_name: notification-mailpit
+    ports:
+      - "1025:1025"   # SMTP port
+      - "8025:8025"   # Web UI port
+    environment:
+      MP_MAX_MESSAGES: 500
+    restart: unless-stopped
+
+  # Our API
+  api:
+    build:
+      context: .
+      dockerfile: NotificationService.Api/Dockerfile
+    container_name: notification-api
+    ports:
+      - "8080:8080"
+    environment:
+      - ConnectionStrings__Postgres=Host=postgres;Database=notification_db;Username=notif_user;Password=notif_password
+      - ConnectionStrings__RabbitMq=amqp://guest:guest@rabbitmq:5672/
+      - ConnectionStrings__Redis=redis:6379
+      - Smtp__Host=mailpit
+      - Smtp__Port=1025
+    depends_on:
+      - postgres
+      - rabbitmq
+    restart: unless-stopped
+
+  # Our Worker
+  worker:
+    build:
+      context: .
+      dockerfile: NotificationService.Worker/Dockerfile
+    container_name: notification-worker
+    environment:
+      - ConnectionStrings__Postgres=Host=postgres;Database=notification_db;Username=notif_user;Password=notif_password
+      - ConnectionStrings__RabbitMq=amqp://guest:guest@rabbitmq:5672/
+      - ConnectionStrings__Redis=redis:6379,abortConnect=false
+      - Smtp__Host=mailpit
+      - Smtp__Port=1025
+    depends_on:
+      - postgres
+      - rabbitmq
+      - redis
+      - mailpit
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

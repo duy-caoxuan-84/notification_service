@@ -1,0 +1,23 @@
+@NotificationService.Api_HostAddress = http://localhost:8080
+
+### Send a Successful Email Notification
+POST {{NotificationService.Api_HostAddress}}/v1/notifications
+Content-Type: application/json
+
+{
+    "idempotencyKey": "test-http-file-1",
+    "userId": "usr_999",
+    "channel": "Email",
+    "payload": "Testing directly from the IDE!"
+}
+
+### Send an SMS Notification (Expected to Fail)
+POST {{NotificationService.Api_HostAddress}}/v1/notifications
+Content-Type: application/json
+
+{
+    "idempotencyKey": "test-http-file-sms",
+    "userId": "usr_999",
+    "channel": "SMS",
+    "payload": "Try to send an SMS from IDE"
+}
