@@ -1,5 +1,7 @@
 # Distributed Notification Service
 
+> **Project Purpose:** This repository is a hands-on exercise for exploring, practicing, and evaluating various software architecture designs, clean code principles, and scalable microservice patterns.
+
 A scalable, containerized microservice for centralizing user notifications (Email, SMS, Push) across a system. 
 It ensures reliable delivery, decoupling via message queues, and protects against spam via rate limiting.
 
